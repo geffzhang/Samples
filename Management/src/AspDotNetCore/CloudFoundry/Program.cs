@@ -1,7 +1,11 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Steeltoe.Extensions.Configuration.CloudFoundry;
+using Steeltoe.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using Microsoft.AspNetCore.Hosting;
 
 namespace CloudFoundry
 {
@@ -11,26 +15,27 @@ namespace CloudFoundry
         {
             var host = new WebHostBuilder()
                 .UseKestrel()
-                .UseUrls(GetServerUrls(args))
+                .UseCloudFoundryHosting()
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .UseIISIntegration()
                 .UseStartup<Startup>()
-                .UseApplicationInsights()
+                .ConfigureAppConfiguration((builderContext, config) =>
+                {
+                    config.SetBasePath(builderContext.HostingEnvironment.ContentRootPath)
+                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                        .AddJsonFile($"appsettings.{builderContext.HostingEnvironment.EnvironmentName}.json", optional: true)
+                        .AddCloudFoundry()
+                        .AddEnvironmentVariables();
+                })
+                .ConfigureLogging((builderContext, loggingBuilder) =>
+                {
+                    loggingBuilder.AddConfiguration(builderContext.Configuration.GetSection("Logging"));
+                    loggingBuilder.AddDynamicConsole();
+                    loggingBuilder.AddDebug();
+                })
                 .Build();
 
             host.Run();
-        }
-        private static string[] GetServerUrls(string[] args)
-        {
-            List<string> urls = new List<string>();
-            for (int i = 0; i < args.Length; i++)
-            {
-                if ("--server.urls".Equals(args[i], StringComparison.OrdinalIgnoreCase))
-                {
-                    urls.Add(args[i + 1]);
-                }
-            }
-            return urls.ToArray();
         }
     }
 }

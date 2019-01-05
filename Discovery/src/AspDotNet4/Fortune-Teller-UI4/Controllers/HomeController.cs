@@ -1,10 +1,6 @@
 ﻿using FortuneTellerUI4.Services;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Mvc;
 
 namespace FortuneTellerUI4.Controllers
@@ -14,10 +10,10 @@ namespace FortuneTellerUI4.Controllers
         IFortuneService _fortunes;
         ILogger<HomeController> _logger;
 
-        public HomeController(IFortuneService fortunes, ILoggerFactory logFactory = null)
+        public HomeController()
         {
-            _fortunes = fortunes;
-            _logger = logFactory?.CreateLogger<HomeController>();
+            _fortunes = new FortuneService(DiscoveryConfig.DiscoveryClient, LoggingConfig.LoggerFactory);
+            _logger = LoggingConfig.LoggerFactory.CreateLogger<HomeController>();
         }
 
         public ActionResult Index()

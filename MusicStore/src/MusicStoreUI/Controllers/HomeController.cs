@@ -1,52 +1,21 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Mvc;
+using MusicStoreUI.Services.HystrixCommands;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
-using MusicStoreUI.Models;
-using MusicStoreUI.Services;
+using Model = MusicStoreUI.Models;
 
 namespace MusicStoreUI.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly AppSettings _appSettings;
-
-        public HomeController(IOptions<AppSettings> options )
+        public HomeController()
         {
-            _appSettings = options.Value;
         }
-        //
+
         // GET: /Home/
-        public async Task<IActionResult> Index(
-            [FromServices] IMusicStore musicStore,
-            [FromServices] IMemoryCache cache)
+        public async Task<IActionResult> Index([FromServices] GetTopAlbums topAlbumsCommand)
         {
-            // Get most popular albums
-            var cacheKey = "topselling";
-            List<Album> albums;
-            if (!cache.TryGetValue(cacheKey, out albums))
-            {
-                albums = await musicStore.GetTopSellingAlbumsAsync(6);
-
-                if (albums != null && albums.Count > 0)
-                {
-                    if (_appSettings.CacheDbResults)
-                    {
-                        // Refresh it every 10 minutes.
-                        // Let this be the last item to be removed by cache if cache GC kicks in.
-                        cache.Set(
-                            cacheKey,
-                            albums,
-                            new MemoryCacheEntryOptions()
-                            .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
-                            .SetPriority(CacheItemPriority.High));
-                    }
-                }
-            }
-
+            List<Model.Album> albums = await topAlbumsCommand.GetTopSellingAlbumsAsync(6);
             return View(albums);
         }
 

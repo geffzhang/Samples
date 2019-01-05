@@ -202,5 +202,12 @@ project.lock.json
 .vscode/
 .idea/
 
-# vi/vim
+# Vim
 *.swp
+
+# test framework and output
+pyenv/
+test.out/
+user.ini
+
+git.properties

@@ -1,47 +1,34 @@
-﻿
+﻿using MusicStoreUI.Services;
+using MusicStoreUI.Models;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Pivotal.Extensions.Configuration;
 using Pivotal.Discovery.Client;
 
 #if USE_REDIS_CACHE
+using Microsoft.AspNetCore.DataProtection;
 using Steeltoe.CloudFoundry.Connector.Redis;
 using Steeltoe.Security.DataProtection;
-using Microsoft.AspNetCore.DataProtection;
 #endif
 
-using MusicStoreUI.Services;
-using MusicStoreUI.Models;
-
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Logging;
-
-
 using Steeltoe.CloudFoundry.Connector.MySql.EFCore;
-using Steeltoe.Extensions.Logging.CloudFoundry;
 using Steeltoe.Management.CloudFoundry;
-using Steeltoe.Management.Endpoint.Health;
+using Steeltoe.CircuitBreaker.Hystrix;
+using Command = MusicStoreUI.Services.HystrixCommands;
 
 namespace MusicStoreUI
 {
     public class Startup
     {
-        public Startup(IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public Startup(IConfiguration configuration)
         {
-
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
-                .AddEnvironmentVariables()
-                .AddConfigServer(env, loggerFactory);
-            Configuration = builder.Build();
-
-            loggerFactory.AddCloudFoundry(Configuration.GetSection("Logging"));
+            Configuration = configuration;
         }
 
-        public IConfigurationRoot Configuration { get; }
+        public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -57,8 +44,6 @@ namespace MusicStoreUI
 #else
             services.AddDistributedMemoryCache();
 #endif
-            // Add custom health check contributor
-            services.AddSingleton<IHealthContributor, MySqlHealthContributor>();
 
             // Add managment endpoint services
             services.AddCloudFoundryActuators(Configuration);
@@ -66,12 +51,11 @@ namespace MusicStoreUI
             services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
 
             services.AddDbContext<AccountsContext>(options => options.UseMySql(Configuration));
-            services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
-                    {
-                        options.Cookies.ApplicationCookie.AccessDeniedPath = "/Home/AccessDenied";
-                    })
+            services.ConfigureApplicationCookie(options => options.AccessDeniedPath = "/Home/AccessDenied");
+            services.AddIdentity<ApplicationUser, ApplicationRole>()
                     .AddEntityFrameworkStores<AccountsContext>()
                     .AddDefaultTokenProviders();
+            services.ConfigureApplicationCookie(options => options.LoginPath = "/Account/LogIn");
 
             services.AddDiscoveryClient(Configuration);
 
@@ -79,7 +63,10 @@ namespace MusicStoreUI
             services.AddSingleton<IShoppingCart, ShoppingCartService>();
             services.AddSingleton<IOrderProcessing, OrderProcessingService>();
 
-            services.AddLogging();
+            services.AddHystrixCommand<Command.GetTopAlbums>("MusicStore", Configuration);
+            services.AddHystrixCommand<Command.GetGenres>("MusicStore", Configuration);
+            services.AddHystrixCommand<Command.GetGenre>("MusicStore", Configuration);
+            services.AddHystrixCommand<Command.GetAlbum>("MusicStore", Configuration);
 
             services.AddMvc();
 
@@ -101,13 +88,20 @@ namespace MusicStoreUI
                     authBuilder =>
                     {
                         authBuilder.RequireClaim("ManageStore", "Allowed");
+                        authBuilder.RequireAuthenticatedUser();
                     });
             });
+
+            // Add Hystrix metrics stream to enable monitoring 
+            services.AddHystrixMetricsStream(Configuration);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
+            // Add Hystrix Metrics context to pipeline
+            app.UseHystrixRequestContext();
+
             // Add management endpoints into pipeline
             app.UseCloudFoundryActuators();
 
@@ -125,7 +119,7 @@ namespace MusicStoreUI
             app.UseStaticFiles();
 
             // Add cookie-based authentication to the request pipeline
-            app.UseIdentity();
+            app.UseAuthentication();
 
             app.UseMvc(routes =>
             {
@@ -141,8 +135,8 @@ namespace MusicStoreUI
 
             app.UseDiscoveryClient();
 
-            SampleData.InitializeAccountsDatabase(app.ApplicationServices, Configuration);
-
+            // Startup Hystrix metrics stream
+            app.UseHystrixMetricsStream();
         }
     }
 }

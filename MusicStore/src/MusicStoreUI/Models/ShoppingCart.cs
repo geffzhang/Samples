@@ -144,7 +144,7 @@ namespace MusicStoreUI.Models
             await EmptyCartAsync();
 
             // Update order count in albums
-            foreach(var a in albumUpdates)
+            foreach (var a in albumUpdates)
             {
                 await _musicStore.UpdateAlbumAsync(a);
             }
@@ -176,7 +176,6 @@ namespace MusicStoreUI.Models
                 //A GUID to hold the cartId. 
                 cartId = Guid.NewGuid().ToString();
                 context.Session.SetString("Session", cartId);
-
             }
             var result = await shoppingCart.CreateCartAsync(cartId);
             return cartId;

@@ -1,9 +1,4 @@
-﻿using Autofac;
-using Autofac.Integration.Mvc;
-using FortuneTellerUI4.Services;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using Pivotal.Discovery.Client;
+﻿using Microsoft.Extensions.Logging;
 using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
@@ -12,47 +7,56 @@ namespace FortuneTellerUI4
 {
     public class MvcApplication : System.Web.HttpApplication
     {
-        private IDiscoveryClient _client;
+   
 
         protected void Application_Start()
         {
-            ILoggerFactory factory = new LoggerFactory();
 
             AreaRegistration.RegisterAllAreas();
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
 
-            ServerConfig.RegisterConfig("development");
+            ApplicationConfig.RegisterConfig("development");
+            LoggingConfig.Register(ApplicationConfig.Configuration);
+            var logger = LoggingConfig.LoggerFactory.CreateLogger<MvcApplication>();
 
-            // Add Console logging provider
-            var settings = new ConfigurationConsoleLoggerSettings(ServerConfig.Configuration.GetSection("Logging"));
-            factory.AddProvider(new ConsoleLoggerProvider(settings));
+            DiscoveryConfig.Register(ApplicationConfig.Configuration, null);
+            logger.LogInformation("Discovery service started!");
 
-            ILogger<MvcApplication> logger = factory.CreateLogger<MvcApplication>();
-            logger.LogInformation("Starting to build container");
+            //var builder = new ContainerBuilder();
 
-            var builder = new ContainerBuilder();
+            //// Add Microsoft Options to container
+            //builder.RegisterOptions();
 
-            // Register all the controllers with Autofac
-            builder.RegisterControllers(typeof(MvcApplication).Assembly);
+            //// Add Microsoft Logging to container
+            //builder.RegisterLogging(ApplicationConfig.Configuration);
 
-            // Register IDiscoveryClient, etc.
-            builder.RegisterDiscoveryClient(ServerConfig.Configuration, factory);
+            //// Add Console logger to container
+            //builder.RegisterConsoleLogging();
 
-            // Register FortuneService
-            builder.RegisterType<FortuneService>().As<IFortuneService>().SingleInstance();
+            //// Register all the controllers with Autofac
+            //builder.RegisterControllers(typeof(MvcApplication).Assembly);
 
-            // Create the Autofac container
-            var container = builder.Build();
-            DependencyResolver.SetResolver(new AutofacDependencyResolver(container));
+            //// Register IDiscoveryClient, etc.
+            //builder.RegisterDiscoveryClient(ApplicationConfig.Configuration);
 
-            logger.LogInformation("Finished container build, starting background services");
+            //// Register FortuneService
+            //builder.RegisterType<FortuneService>().As<IFortuneService>().SingleInstance();
+
+            //// Create the Autofac container
+            //var container = builder.Build();
+            //DependencyResolver.SetResolver(new AutofacDependencyResolver(container));
+
+            // Get a logger from container
+            //var logger = container.Resolve<ILogger<MvcApplication>>();
+
+            //logger.LogInformation("Finished container build, starting background services");
 
             // Start the Discovery client background thread
-            _client = container.Resolve<IDiscoveryClient>();
+            //container.StartDiscoveryClient();
 
-            logger.LogInformation("Finished starting background services");
+            //logger.LogInformation("Finished starting background services");
         }
     }
 }

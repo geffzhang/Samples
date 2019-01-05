@@ -1,7 +1,0 @@
-﻿---
-applications:
-- name: keystore
-  env:
-    ASPNETCORE_ENVIRONMENT: Development
-  services:
-   - myRedisService

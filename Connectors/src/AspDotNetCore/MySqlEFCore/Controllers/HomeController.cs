@@ -1,47 +1,42 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace MySqlEFCore.Controllers
 {
     public class HomeController : Controller
     {
+        private IConfiguration config;
+
+        public HomeController(IConfiguration config)
+        {
+            this.config = config;
+        }
+
         public IActionResult Index()
         {
+            AddMultiDbLink();
             return View();
         }
 
-        public IActionResult About()
+        public IActionResult MySqlData([FromServices] TestContext context)
         {
-            ViewData["Message"] = "Your application description page.";
-
-            return View();
+            AddMultiDbLink();
+            return View(context.TestData.ToList());
         }
 
-        public IActionResult Contact()
+        public IActionResult MoreMySqlData([FromServices] SecondTestContext context)
         {
-            ViewData["Message"] = "Your contact page.";
-
-            return View();
+            AddMultiDbLink();
+            return View(context.MoreTestData.ToList());
         }
 
-        public IActionResult Error()
+        private void AddMultiDbLink()
         {
-            return View();
-        }
-        public IActionResult MySqlData(
-        [FromServices] TestContext context)
-        {
-
-            var td = context.TestData.ToList();
-            foreach (var d in td)
+            if (config.GetValue<bool>("multipleMySqlDatabases"))
             {
-                ViewData["Key" + d.Id] = d.Data;
+                ViewBag.MultipleDatabases = true;
             }
-
-            return View();
         }
     }
 }

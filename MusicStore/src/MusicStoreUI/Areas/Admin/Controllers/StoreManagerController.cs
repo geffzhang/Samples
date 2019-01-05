@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using MusicStoreUI.Models;
 using MusicStoreUI.ViewModels;
 using MusicStoreUI.Services;
+using System.Collections.Generic;
 
 namespace MusicStoreUI.Areas.Admin.Controllers
 {
@@ -32,8 +33,14 @@ namespace MusicStoreUI.Areas.Admin.Controllers
         // GET: /StoreManager/
         public async Task<IActionResult> Index()
         {
-            var albums = await MusicStoreService.GetAllAlbumsAsync();
-            return View(albums);
+            try
+            {
+                var albums = await MusicStoreService.GetAllAlbumsAsync();
+                return View(albums);
+            } catch 
+            {
+                return View(new List<Album>());
+            }
         }
 
         //
@@ -97,7 +104,7 @@ namespace MusicStoreUI.Areas.Admin.Controllers
                 album.Genre = await MusicStoreService.GetGenreAsync(album.GenreId);
 
                 await MusicStoreService.AddAlbumAsync(album);
-      
+
 
                 var albumData = new AlbumData
                 {

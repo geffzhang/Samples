@@ -1,16 +1,15 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Common.Models;
-using OrderService.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Logging;
+﻿using Common.Models;
 using Common.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using OrderService.Models;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Principal;
-using System;
-using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace OrderService.Controllers
 {
@@ -31,7 +30,7 @@ namespace OrderService.Controllers
         // GET /myorders
         [HttpGet]
         [Authorize(Policy = "Orders")]
-        public IEnumerable<Order> GetMyOrders()
+        public async Task<List<Order>> GetMyOrders()
         {
             var customerId = GetCustomerId(this.HttpContext.User.Identity);
             _logger.LogInformation("CustomerId=" + customerId);
@@ -40,22 +39,29 @@ namespace OrderService.Controllers
                 return new List<Order>();
             }
 
-            return _dbContext.Orders.Where(o => o.CustomerId == customerId)
-                .Include(o => o.OrderItems);
+            return await _dbContext.Orders.Where(o => o.CustomerId == customerId)
+                        .Include(o => o.OrderItems).ToListAsync();
         }
 
         // POST /myorders
         [HttpPost]
         [Authorize(Policy = "Orders")]
-        public async Task<IActionResult> Post([FromBody]Dictionary<long, int> itemsAndQuantities)
+        public async Task<IActionResult> Post([FromBody]Dictionary<long, int?> itemsAndQuantities)
         {
+            if (itemsAndQuantities == null)
+            {
+                _logger.LogCritical("No order items detected!");
+                return BadRequest("Empty orders not allowed");
+            }
 
             LogClaims(this.HttpContext.User.Identity);
-            Order order = new Order();
-            order.CustomerId = GetCustomerId(this.HttpContext.User.Identity);
-            order.Email = GetEmail(this.HttpContext.User.Identity);
-            order.FirstName = GetFirstName(this.HttpContext.User.Identity);
-            order.LastName = GetLastName(this.HttpContext.User.Identity);
+            Order order = new Order
+            {
+                CustomerId = GetCustomerId(this.HttpContext.User.Identity),
+                Email = GetEmail(this.HttpContext.User.Identity),
+                FirstName = GetFirstName(this.HttpContext.User.Identity),
+                LastName = GetLastName(this.HttpContext.User.Identity)
+            };
 
             _logger.LogInformation("CustomerId=" + order.CustomerId);
             if (string.IsNullOrEmpty(order.CustomerId))
@@ -64,42 +70,53 @@ namespace OrderService.Controllers
             }
 
             float total = 0;
-            foreach(KeyValuePair<long,int> reqItem  in itemsAndQuantities)
+            foreach (var reqItem in itemsAndQuantities)
             {
+                _logger.LogDebug("Order item key: {key}, Quantity: {quantity}", reqItem.Key, reqItem.Value ?? 0);
                 long itemId = reqItem.Key;
-                int quantity = reqItem.Value;
+                int quantity = reqItem.Value ?? 0;
                 if (itemId < 0 || quantity < 0)
                 {
                     return BadRequest();
                 }
+
                 if (quantity == 0)
                 {
                     continue;
                 }
+
                 MenuItem item = await _menuService.GetMenuItemAsync(itemId);
                 if (item == null)
                 {
-                    _logger.LogInformation("Unable to find menuitem: " + itemId);
+                    _logger.LogCritical("Unable to find menuitem: " + itemId);
                     continue;
                 }
-                OrderItem orderItem = new OrderItem();
-                orderItem.Order = order;
-                orderItem.Quantity = quantity;
-                orderItem.MenuItemId = itemId;
-                orderItem.Name = item.Name;
-                orderItem.Price = item.Price;
+
+                OrderItem orderItem = new OrderItem
+                {
+                    Order = order,
+                    Quantity = quantity,
+                    MenuItemId = itemId,
+                    Name = item.Name,
+                    Price = item.Price
+                };
                 order.OrderItems.Add(orderItem);
                 total = total + (item.Price * quantity);
             }
+
             if (order.OrderItems.Count > 0)
             {
                 order.Total = total;
                 _dbContext.Orders.Add(order);
-                _dbContext.SaveChanges();
+                await _dbContext.SaveChangesAsync();
                 return Ok();
             }
+            else
+            {
+                _logger.LogCritical("Somehow ended up with no order items");
+            }
+
             return Ok();
- 
         }
 
         private void LogClaims(IIdentity identity)
@@ -144,12 +161,14 @@ namespace OrderService.Controllers
                 _logger.LogError("Unable to access ClaimsIdentity");
                 return null;
             }
+
             var idClaim = claims.FindFirst(claim);
             if (idClaim == null)
             {
                 _logger.LogError("Unable to access: " + claim);
                 return null;
             }
+
             return idClaim.Value;
         }
     }

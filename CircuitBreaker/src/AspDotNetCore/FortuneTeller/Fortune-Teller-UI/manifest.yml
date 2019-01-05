@@ -1,6 +1,8 @@
 ---
 applications:
 - name: fortuneui
+  buildpacks:
+   - dotnet_core_buildpack
   env:
     ASPNETCORE_ENVIRONMENT: Production
   services:

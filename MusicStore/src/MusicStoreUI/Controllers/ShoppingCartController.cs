@@ -1,12 +1,13 @@
-﻿
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using MusicStoreUI.Services;
 using MusicStoreUI.Models;
+using MusicStoreUI.Services;
+using MusicStoreUI.Services.HystrixCommands;
 using MusicStoreUI.ViewModels;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
+using Command = MusicStoreUI.Services.HystrixCommands;
 
 namespace MusicStoreUI.Controllers
 {
@@ -22,6 +23,7 @@ namespace MusicStoreUI.Controllers
         }
 
         public IShoppingCart ShoppingCartService { get; }
+
         public IMusicStore MusicStoreService { get; }
 
         //
@@ -43,11 +45,14 @@ namespace MusicStoreUI.Controllers
 
         //
         // GET: /ShoppingCart/AddToCart/5
-
-        public async Task<IActionResult> AddToCart(int id, CancellationToken requestAborted)
+        public async Task<IActionResult> AddToCart(
+            [FromServices] Command.GetAlbum albumCommand,
+            int id, 
+            CancellationToken requestAborted)
         {
             // Retrieve the album from the database
-            var addedAlbum = await MusicStoreService.GetAlbumAsync(id); 
+
+            var addedAlbum = await albumCommand.GetAlbumAsync(id);
 
             // Add it to the shopping cart
             var cart = ShoppingCart.GetCart(ShoppingCartService, MusicStoreService, null, HttpContext);
@@ -64,9 +69,7 @@ namespace MusicStoreUI.Controllers
         // AJAX: /ShoppingCart/RemoveFromCart/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RemoveFromCart(
-            int id,
-            CancellationToken requestAborted)
+        public async Task<IActionResult> RemoveFromCart(int id, CancellationToken requestAborted)
         {
             // Retrieve the current user's shopping cart
             var cart = ShoppingCart.GetCart(ShoppingCartService, MusicStoreService, null, HttpContext);

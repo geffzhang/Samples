@@ -1,52 +1,45 @@
-﻿
+﻿using Fortune_Teller_UI.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Fortune_Teller_UI.Services;
 using Pivotal.Discovery.Client;
-using Steeltoe.Extensions.Configuration;
-
+using Steeltoe.Common.Http.Discovery;
+using System;
 
 namespace Fortune_Teller_UI
 {
     public class Startup
     {
-        public Startup(IHostingEnvironment env, ILoggerFactory factory)
+        public Startup(IConfiguration configuration)
         {
-
-            // Set up configuration sources.
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
-                .AddCloudFoundry()
-                .AddEnvironmentVariables();
-            Configuration = builder.Build();
+            Configuration = configuration;
         }
 
-        public IConfigurationRoot Configuration { get; set; }
+        public IConfiguration Configuration { get; set; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddLogging();
-
             services.AddDiscoveryClient(Configuration);
 
-            services.AddSingleton<IFortuneService, FortuneService>();
+            services.AddTransient<DiscoveryHttpMessageHandler>();
+
+            services.AddHttpClient("fortunes", c =>
+                {
+                    c.BaseAddress = new Uri("http://fortuneService/api/fortunes/");
+                })
+                .AddHttpMessageHandler<DiscoveryHttpMessageHandler>()
+                .AddTypedClient<IFortuneService, FortuneService>();
 
             // Add framework services.
             services.AddMvc();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
-            loggerFactory.AddDebug();
-
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -60,8 +53,8 @@ namespace Fortune_Teller_UI
 
             app.UseMvc();
 
+            // Startup the background thread
             app.UseDiscoveryClient();
         }
-
     }
 }

@@ -1,8 +1,9 @@
 ﻿---
 applications:
-- name: mysql4-connector
+- name: mysql-connector-4x
   memory: 512M
-  stack: windows2012R2
-  health-check-type: none
+  stack: windows2016
+  buildpacks:
+   - hwc_buildpack
   services:
    - myMySqlService

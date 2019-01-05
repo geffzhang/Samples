@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Simple.Model;
 using Steeltoe.Extensions.Configuration.ConfigServer;
 using Microsoft.Extensions.Configuration;
+using Simple.Model;
+using System;
 
 namespace Simple.Controllers
 {
@@ -76,7 +73,7 @@ namespace Simple.Controllers
         private void CreateConfigServerDataViewData()
         {
 
-
+            ViewData["ASPNETCORE_ENVIRONMENT"] = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             // IConfigServerData property is set to a IOptionsSnapshot<ConfigServerData> that has been
             // initialized with the configuration data returned from the Spring Cloud Config Server
             if (IConfigServerData != null && IConfigServerData.Value != null)

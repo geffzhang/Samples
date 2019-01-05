@@ -1,9 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Steeltoe.Extensions.Configuration.CloudFoundry;
+using Steeltoe.Extensions.Logging;
+using System;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
 
 namespace MySqlEFCore
 {
@@ -11,27 +13,62 @@ namespace MySqlEFCore
     {
         public static void Main(string[] args)
         {
-            var host = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls(GetServerUrls(args))
-                .UseContentRoot(Directory.GetCurrentDirectory())
-                .UseIISIntegration()
-                .UseStartup<Startup>()
-                .Build();
+            var host = BuildWebHost(args);
+            using (var scope = host.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                try
+                {
+                    SampleData.InitializeMyContexts(services);
+                }
+                catch (Exception ex)
+                {
+                    var logger = services.GetRequiredService<ILogger<Program>>();
+                    logger.LogError(ex, "An error occurred seeding the DB.");
+                }
+                var config = services.GetService<IConfiguration>();
+                if (config.GetValue<bool>("multipleMySqlDatabases"))
+                {
+                    try
+                    {
+                        MoreSampleData.InitializeMyContexts(services);
+                    }
+                    catch (Exception ex)
+                    {
+                        var logger = services.GetRequiredService<ILogger<Program>>();
+                        logger.LogError(ex, "An error occurred seeding the second DB.");
+                    }
+                }
+            }
 
             host.Run();
         }
-        private static string[] GetServerUrls(string[] args)
+
+        public static IWebHost BuildWebHost(string[] args)
         {
-            List<string> urls = new List<string>();
-            for (int i = 0; i < args.Length; i++)
-            {
-                if ("--server.urls".Equals(args[i], StringComparison.OrdinalIgnoreCase))
+            return new WebHostBuilder()
+                .UseKestrel()
+                .UseCloudFoundryHosting()
+                .UseContentRoot(Directory.GetCurrentDirectory())
+                .UseIISIntegration()
+                .UseStartup<Startup>()
+                .ConfigureAppConfiguration((builderContext, configBuilder) =>
                 {
-                    urls.Add(args[i + 1]);
-                }
-            }
-            return urls.ToArray();
+                    var env = builderContext.HostingEnvironment;
+                    configBuilder.SetBasePath(env.ContentRootPath)
+                        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                        .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
+                        .AddEnvironmentVariables()
+                        // Add to configuration the Cloudfoundry VCAP settings
+                        .AddCloudFoundry();
+                })
+                .ConfigureLogging((context, builder) =>
+                {
+                    builder.AddConfiguration(context.Configuration.GetSection("Logging"));
+                    builder.AddDynamicConsole();
+                })
+                .Build();
         }
+
     }
 }

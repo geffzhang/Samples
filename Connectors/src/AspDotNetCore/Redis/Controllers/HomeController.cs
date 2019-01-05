@@ -3,7 +3,6 @@ using Microsoft.Extensions.Caching.Distributed;
 using System.Text;
 using StackExchange.Redis;
 
-
 namespace Redis.Controllers
 {
     public class HomeController : Controller
@@ -17,20 +16,6 @@ namespace Redis.Controllers
         }
         public IActionResult Index()
         {
-            return View();
-        }
-
-        public IActionResult About()
-        {
-            ViewData["Message"] = "Your application description page.";
-
-            return View();
-        }
-
-        public IActionResult Contact()
-        {
-            ViewData["Message"] = "Your contact page.";
-
             return View();
         }
 
@@ -54,11 +39,11 @@ namespace Redis.Controllers
         {
             IDatabase db = _conn.GetDatabase();
 
-            string key1 = db.StringGet("ConnectionMultiplexorKey1");
-            string key2 = db.StringGet("ConnectionMultiplexorKey2");
+            string key1 = db.StringGet("ConnectionMultiplexerKey1");
+            string key2 = db.StringGet("ConnectionMultiplexerKey2");
 
-            ViewData["ConnectionMultiplexorKey1"] = key1;
-            ViewData["ConnectionMultiplexorKey2"] = key2;
+            ViewData["ConnectionMultiplexerKey1"] = key1;
+            ViewData["ConnectionMultiplexerKey2"] = key2;
 
             return View();
         }

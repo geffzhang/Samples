@@ -1,7 +1,0 @@
----
-applications:
-- name: rabbit
-  env:
-    ASPNETCORE_ENVIRONMENT: Development
-  services:
-   - myRabbitService

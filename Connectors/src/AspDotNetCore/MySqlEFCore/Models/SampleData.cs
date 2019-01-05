@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace MySqlEFCore
 {
@@ -11,16 +11,20 @@ namespace MySqlEFCore
     {
         internal static void InitializeMyContexts(IServiceProvider serviceProvider)
         {
-         
             if (serviceProvider == null)
             {
                 throw new ArgumentNullException("serviceProvider");
             }
             using (var serviceScope = serviceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
+                Console.WriteLine("Ensuring database has been created...");
                 var db = serviceScope.ServiceProvider.GetService<TestContext>();
-                db.Database.EnsureCreated();
-               
+                if (!db.Database.EnsureCreated())
+                {
+                    Console.WriteLine("There may be another table in this database already, attempting to create with a workaround");
+                    RelationalDatabaseCreator databaseCreator = (RelationalDatabaseCreator)db.Database.GetService<IDatabaseCreator>();
+                    databaseCreator.CreateTables();
+                }
             }
             InitializeContext(serviceProvider);
         }
@@ -30,21 +34,15 @@ namespace MySqlEFCore
             using (var serviceScope = serviceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
                 var db = serviceScope.ServiceProvider.GetService<TestContext>();
-                if (DataExists<TestData>(db))
+                if (db.TestData.Any())
+                {
                     return;
+                }
 
-                AddData<TestData>(db, new TestData() { Id = 1, Data = "Test Data 1 - TestContext " });
-                AddData<TestData>(db, new TestData() { Id = 2, Data = "Test Data 2 - TestContext " });
+                AddData<TestData>(db, new TestData() { Id = 1, Data = "Test Data 1 - EF Core TestContext A" });
+                AddData<TestData>(db, new TestData() { Id = 2, Data = "Test Data 2 - EF Core TestContext B" });
                 db.SaveChanges();
             }
-        }
-
-        private static bool DataExists<TData>(DbContext db) where TData: class
-        {
-            var existingData = db.Set<TData>().ToList();
-            if (existingData.Count > 0)
-                return true;
-            return false;
         }
 
         private static void AddData<TData>(DbContext db, object item) where TData: class

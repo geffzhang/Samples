@@ -1,12 +1,12 @@
-﻿using Pivotal.Discovery.Client;
-using System;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.IO;
+﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Microsoft.Extensions.Logging;
+using Steeltoe.Common.Discovery;
+using System;
+using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace MusicStoreUI.Services
 {
@@ -17,7 +17,7 @@ namespace MusicStoreUI.Services
 
         public BaseDiscoveryService(IDiscoveryClient client, ILogger logger)
         {
-            _handler = new DiscoveryHttpClientHandler(client);
+            _handler = new DiscoveryHttpClientHandler(client, logger);
             _logger = logger;
         }
         public virtual HttpClient GetClient()
@@ -39,9 +39,10 @@ namespace MusicStoreUI.Services
             catch (Exception e)
             {
                 _logger?.LogError("Invoke exception: {0}", e);
+                throw;
             }
 
-            return false;
+            //return false;
         }
         public virtual async Task<bool> Invoke(HttpRequestMessage request, object content)
         {
@@ -58,9 +59,10 @@ namespace MusicStoreUI.Services
             catch (Exception e)
             {
                 _logger?.LogError("Invoke exception: {0}", e);
+                throw;
             }
 
-            return false;
+            //return false;
         }
 
         public virtual async Task<T> Invoke<T>(HttpRequestMessage request, object content = null)
@@ -81,17 +83,25 @@ namespace MusicStoreUI.Services
             catch (Exception e)
             {
                 _logger?.LogError("Invoke exception: {0}", e);
+                throw;
             }
 
-            return default(T);
+            //return default(T);
         }
 
         public virtual T Deserialize<T>(Stream stream)
         {
-            using (JsonReader reader = new JsonTextReader(new StreamReader(stream)))
+            try
             {
-                JsonSerializer serializer = new JsonSerializer();
-                return (T)serializer.Deserialize(reader, typeof(T));
+                using (JsonReader reader = new JsonTextReader(new StreamReader(stream)))
+                {
+                    JsonSerializer serializer = new JsonSerializer();
+                    return (T)serializer.Deserialize(reader, typeof(T));
+                }
+            } catch(Exception e)
+            {
+                _logger?.LogError("Deserialize exception: {0}", e);
+                throw;
             }
 
         }

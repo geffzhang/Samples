@@ -1,11 +1,7 @@
-﻿using MySql.Data.Entity;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
-using System.Linq;
-using System.Threading.Tasks;
+using MySql.Data.Entity;
 
 namespace MySqlEF6.Models
 {
@@ -16,14 +12,17 @@ namespace MySqlEF6.Models
         {
 
         }
+
         public DbSet<TestData> TestData { get; set; }
     }
 
+    [Table("EF6TestData")]
     public class TestData
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public int Id { get; set; }
+
         public string Data { get; set; }
     }
 }

@@ -1,6 +1,9 @@
 ---
 applications:
 - name: admin-portal
+  buildpacks:
+   - dotnet_core_buildpack
+  memory: 256M
   env:
     ASPNETCORE_ENVIRONMENT: Development
   services:

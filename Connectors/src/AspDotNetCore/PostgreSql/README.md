@@ -1,46 +1,67 @@
-﻿# Postgres Connector Sample App - NpgsqlConnection
-ASP.NET Core sample app illustrating how to use [Steeltoe Postgres Connector](https://github.com/SteeltoeOSS/Connectors/tree/master/src/Steeltoe.CloudFoundry.Connector.PostgreSql) for connecting to a Postgres database service on CloudFoundry. This specific sample illustrates how to use a `NpgsqlConnection` to issue commands to the bound database. There is also an additional sample which illustrates how to use EFCore.
+﻿# PostgreSQL Connector Sample App - NpgsqlConnection
 
-# Pre-requisites - CloudFoundry
+An ASP.NET Core sample application for the [Steeltoe PostgreSQL Connector](https://steeltoe.io/docs/steeltoe-connectors/#2-0-postgresql).
 
-1. Install Pivotal CloudFoundry
-2. Optionaly, installed Windows support (Greenhouse)  
-3. Install Postgres database service (e.g. EDB Postgres)
-4. Install .NET Core SDK
+This sample uses `NpgsqlConnection` to issue commands to the bound database.
+There is another sample using [PostgreSQL with EFCore](./PostgreEFCore).
 
+## Pre-requisites - CloudFoundry
 
-# Create Postgres Service Instance on CloudFoundry
-You must first create an instance of the Postgres database service in a org/space.
+1. Installed Pivotal CloudFoundry
+1. (Optional) installed Windows support
+1. Installed PostgreSQL database service (e.g. EDB Postgres)
+1. Installed .NET Core SDK
 
-1. cf target -o myorg -s development
-2. cf create-service EDB-Shared-PostgreSQL "Basic PostgreSQL Plan" myPostgres
+## Create PostgreSQL Service Instance on CloudFoundry
 
-# Publish App & Push to CloudFoundry
+You must first create an instance of the PostgreSQL database service in a org/space.
 
-1. cf target -o myorg -s development
-2. cd samples/Connectors/src/AspDotNetCore/PostgreSql
-3. dotnet restore --configfile nuget.config
-4. Publish app to a directory selecting the framework and runtime you want to run on. 
-(e.g. `dotnet publish  -f netcoreapp2.0 -r ubuntu.14.04-x64`)
-5. Push the app using the appropriate manifest.
- (e.g. `cf push -f manifest.yml -p bin/Debug/netcoreapp2.0/ubuntu.14.04-x64/publish` or `cf push -f manifest-windows.yml -p bin/Debug/netcoreapp2.0/win10-x64/publish`)
+```bash
+cf target -o myorg -s development
 
+# for EDB PostgreSQL:
+cf create-service EDB-Shared-PostgreSQL "Basic PostgreSQL Plan" myPostgres
 
-Note: The provided manifest(s) will create an app named `postgres-connector` and attempt to bind to the the app to PostgreSql service `myPostgres`.
+# for CrunchyPostgres:
+cf create-service postgresql-9.5-odb small myPostgres -c '{"db_name":"postgresample", "db_username": "steeltoe", "owner_name":"<your name>", "owner_email":"<your email>"}'
+# or with escaped double quotes for Powershell:
+cf create-service postgresql-9.5-odb small myPostgres -c '{\"db_name\":\"postgresample\", \"db_username\": \"steeltoe\", \"owner_name\":\"<your name>\", \"owner_email\":\"<your email>\"}'
+```
 
-# What to expect - CloudFoundry
-After building and running the app, you should see something like the following in the logs. 
+## Publish App & Push to CloudFoundry
+
+1. `cf target -o myorg -s development`
+1. `cd samples/Connectors/src/AspDotNetCore/PostgreSql`
+1. `dotnet restore --configfile nuget.config`
+1. Publish app to a local directory, specifying the framework and runtime (select ONE of these commands):
+   * `dotnet publish -f netcoreapp2.1 -r ubuntu.14.04-x64`
+   * `dotnet publish -f net461 -r win10-x64`
+1. Push the app using the appropriate manifest (select ONE of these commands):
+   * `cf push -f manifest.yml -p bin/Debug/netcoreapp2.1/ubuntu.14.04-x64/publish`
+   * `cf push -f manifest-windows.yml -p bin/Debug/net461/win10-x64/publish`
+
+> Note: The provided manifest(s) will create an app named `postgres-connector` and attempt to bind the app to PostgreSQL service `myPostgres`.
+
+## What to expect - CloudFoundry
 
 To see the logs as you startup and use the app: `cf logs postgres-connector`
 
 On a Windows cell, you should see something like this during startup:
-```
+
+```bash
 2016-08-05T07:23:02.15-0600 [CELL/0]     OUT Creating container
 2016-08-05T07:23:03.81-0600 [CELL/0]     OUT Successfully created container
-2016-08-05T07:23:09.07-0600 [APP/0]      OUT Running cmd /c .\PostgreSql --server.urls http://*:%PORT%
+2016-08-05T07:23:09.07-0600 [APP/0]      OUT Running .\PostgreSql
 2016-08-05T07:23:14.68-0600 [APP/0]      OUT Hosting environment: development
 2016-08-05T07:23:14.68-0600 [APP/0]      OUT Content root path: C:\containerizer\75E10B9301D2D9B4A8\user\app
 2016-08-05T07:23:14.68-0600 [APP/0]      OUT Application started. Press Ctrl+C to shut down.
 2016-08-05T07:23:14.68-0600 [APP/0]      OUT Now listening on: http://*:51217
 ```
-At this point the app is up and running.  Upon startup the app inserts a couple rows into the bound Postgres database. To display those rows click on the `Postgres Data` link in the menu and you should see the row data displayed.
+
+This sample will be available at <http://postgres-connector.[your-cf-apps-domain]/>.
+
+Upon startup, the app inserts a couple rows into the bound PostgreSQL database. To display those rows, click on the `Postgres Data` link in the menu.
+
+---
+
+### See the Official [Steeltoe Service Connectors Documentation](https://steeltoe.io/docs/steeltoe-connectors/#2-0-postgresql) for a more in-depth walkthrough of the samples and more detailed information

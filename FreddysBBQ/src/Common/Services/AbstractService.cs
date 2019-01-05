@@ -1,30 +1,31 @@
-﻿using System;
-
-using System.Threading.Tasks;
-using Pivotal.Discovery.Client;
-using System.Net.Http;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Authentication;
+using Steeltoe.Common.Discovery;
+using System;
+using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Common.Services
 {
     public abstract class AbstractService 
     {
         protected DiscoveryHttpClientHandler _handler;
-        protected ILogger _logger;
+        protected ILogger<AbstractService> _logger;
         protected IHttpContextAccessor _context;
 
-        public AbstractService(IDiscoveryClient client, ILogger logger, IHttpContextAccessor context)
+        public AbstractService(IDiscoveryClient client, ILogger<AbstractService> logger, IHttpContextAccessor context)
         {
-            _handler = new DiscoveryHttpClientHandler(client);
-            _handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+            _handler = new DiscoveryHttpClientHandler(client)
+            {
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            };
             _logger = logger;
             _context = context;
         }
@@ -144,10 +145,21 @@ namespace Common.Services
         {
             var client = new HttpClient(_handler, false);
 
-            var token = await _context.HttpContext.Authentication.GetTokenAsync("access_token");
+            var token = await _context.HttpContext.GetTokenAsync("access_token");
             if (token != null)
             {
+                _logger.LogDebug("Found a token {token}", token);
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+            else
+            {
+                _logger.LogDebug("Token not found in HttpContext");
+                string authHeader = await Task.FromResult(_context.HttpContext.Request.Headers["Authorization"]);
+                if (authHeader != null)
+                {
+                    _logger.LogDebug("Found authorization header");
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authHeader.Replace("bearer ", string.Empty));
+                }
             }
 
             return client;
